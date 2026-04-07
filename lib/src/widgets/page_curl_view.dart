@@ -137,6 +137,7 @@ class _PageCurlViewState extends State<PageCurlView>
     super.didUpdateWidget(oldWidget);
     if (widget.controller != oldWidget.controller) {
       _disposeControllerIfOwned();
+      _disposeImages();
       _initController();
     }
   }

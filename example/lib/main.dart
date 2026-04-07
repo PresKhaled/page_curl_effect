@@ -36,6 +36,7 @@ class _PageCurlDemoState extends State<PageCurlDemo>
     with TickerProviderStateMixin {
   late PageCurlController _controller;
   CurlAxis _selectedAxis = CurlAxis.horizontalWithVerticalElasticity;
+  int _currentPageIndex = 0;
 
   static const _totalPages = 10;
 
@@ -68,8 +69,10 @@ class _PageCurlDemoState extends State<PageCurlDemo>
         hotspotRatio: 0.3,
         curlAxis: _selectedAxis,
       ),
+      initialPage: _currentPageIndex,
       itemCount: _totalPages,
       onPageChanged: (page) {
+        _currentPageIndex = page;
         if (mounted) setState(() {});
       },
     );
