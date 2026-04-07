@@ -2,6 +2,7 @@ import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 
 import '../config/page_curl_config.dart';
+import 'curl_axis.dart';
 import 'curl_direction.dart';
 import 'curl_state.dart';
 import 'page_curl_physics.dart';
@@ -173,16 +174,21 @@ class PageCurlController {
       position,
       _pageSize,
       config.hotspotRatio,
+      config.curlAxis,
     )) {
       return false;
     }
 
     // Determine direction and validate boundaries.
     final corner = PageCurlPhysics.nearestCorner(position, _pageSize);
-    final isRight = corner.dx >= _pageSize.width / 2;
-    final newDirection = isRight
-        ? CurlDirection.forward
-        : CurlDirection.backward;
+    final CurlDirection newDirection;
+    if (config.curlAxis == CurlAxis.vertical) {
+      final isBottom = corner.dy >= _pageSize.height / 2;
+      newDirection = isBottom ? CurlDirection.forward : CurlDirection.backward;
+    } else {
+      final isRight = corner.dx >= _pageSize.width / 2;
+      newDirection = isRight ? CurlDirection.forward : CurlDirection.backward;
+    }
 
     if (!_canFlip(newDirection)) return false;
 
@@ -225,6 +231,7 @@ class PageCurlController {
       _animationTarget = PageCurlPhysics.computeFlipCompletionTarget(
         _cornerOrigin,
         _pageSize,
+        config.curlAxis,
       );
       _state = CurlState.animatingForward;
       _animationController.duration = config.animationDuration;
@@ -250,11 +257,17 @@ class PageCurlController {
     if (!_canFlip(CurlDirection.forward)) return;
 
     _direction = CurlDirection.forward;
-    _cornerOrigin = Offset(_pageSize.width, _pageSize.height);
-    _releasePoint = Offset(_pageSize.width * 0.7, _pageSize.height * 0.9);
+    if (config.curlAxis == CurlAxis.vertical) {
+      _cornerOrigin = Offset(_pageSize.width, _pageSize.height);
+      _releasePoint = Offset(_pageSize.width * 0.9, _pageSize.height * 0.7);
+    } else {
+      _cornerOrigin = Offset(_pageSize.width, _pageSize.height);
+      _releasePoint = Offset(_pageSize.width * 0.7, _pageSize.height * 0.9);
+    }
     _animationTarget = PageCurlPhysics.computeFlipCompletionTarget(
       _cornerOrigin,
       _pageSize,
+      config.curlAxis,
     );
     _state = CurlState.animatingForward;
 
@@ -272,11 +285,17 @@ class PageCurlController {
     if (!_canFlip(CurlDirection.backward)) return;
 
     _direction = CurlDirection.backward;
-    _cornerOrigin = Offset(0, _pageSize.height);
-    _releasePoint = Offset(_pageSize.width * 0.3, _pageSize.height * 0.9);
+    if (config.curlAxis == CurlAxis.vertical) {
+      _cornerOrigin = const Offset(0, 0); // Top-left corner
+      _releasePoint = Offset(_pageSize.width * 0.1, _pageSize.height * 0.3);
+    } else {
+      _cornerOrigin = Offset(0, _pageSize.height);
+      _releasePoint = Offset(_pageSize.width * 0.3, _pageSize.height * 0.9);
+    }
     _animationTarget = PageCurlPhysics.computeFlipCompletionTarget(
       _cornerOrigin,
       _pageSize,
+      config.curlAxis,
     );
     _state = CurlState.animatingForward;
 
@@ -365,9 +384,9 @@ class PageCurlController {
   /// Decides whether the flip should complete or snap back based on
   /// drag distance and fling velocity.
   bool _shouldCompleteFlip(Offset velocity) {
-    // Check fling velocity first.
+    // Check fling velocity first depending on the axis.
     final isForward = _direction == CurlDirection.forward;
-    final relevantVelocity = isForward ? -velocity.dx : velocity.dx;
+    final relevantVelocity = config.curlAxis == CurlAxis.vertical ? (isForward ? -velocity.dy : velocity.dy) : (isForward ? -velocity.dx : velocity.dx);
 
     if (relevantVelocity > config.flingVelocityThreshold) {
       return true;

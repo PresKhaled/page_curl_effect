@@ -247,10 +247,15 @@ class PageCurlPhysics {
     Offset touchPosition,
     Size pageSize,
     double hotspotRatio,
+    CurlAxis curlAxis,
   ) {
-    final zoneWidth = pageSize.width * hotspotRatio;
-    return touchPosition.dx <= zoneWidth ||
-        touchPosition.dx >= pageSize.width - zoneWidth;
+    if (curlAxis == CurlAxis.vertical) {
+      final zoneHeight = pageSize.height * hotspotRatio;
+      return touchPosition.dy <= zoneHeight || touchPosition.dy >= pageSize.height - zoneHeight;
+    } else {
+      final zoneWidth = pageSize.width * hotspotRatio;
+      return touchPosition.dx <= zoneWidth || touchPosition.dx >= pageSize.width - zoneWidth;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -276,11 +281,17 @@ class PageCurlPhysics {
   static Offset computeFlipCompletionTarget(
     Offset cornerOrigin,
     Size pageSize,
+    CurlAxis curlAxis,
   ) {
-    // If corner is bottom-right, target is bottom-left, and vice versa.
-    // We mirror only the X coordinate to simulate a horizontal page flip.
-    final targetX = cornerOrigin.dx < pageSize.width / 2 ? pageSize.width : 0.0;
-    return Offset(targetX, cornerOrigin.dy);
+    if (curlAxis == CurlAxis.vertical) {
+      // Mirror only the Y coordinate to simulate a vertical page flip.
+      final targetY = cornerOrigin.dy < pageSize.height / 2 ? pageSize.height : 0.0;
+      return Offset(cornerOrigin.dx, targetY);
+    } else {
+      // Mirror only the X coordinate to simulate a horizontal page flip.
+      final targetX = cornerOrigin.dx < pageSize.width / 2 ? pageSize.width : 0.0;
+      return Offset(targetX, cornerOrigin.dy);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -309,18 +320,30 @@ class PageCurlPhysics {
     var x = touchPoint.dx;
     var y = touchPoint.dy;
 
-    // --- Spine attachment constraint ---
-    // Prevent the touch from going past the corner in the drag direction.
-    if (cornerOrigin.dx >= pageSize.width / 2) {
-      // Right corner — touch must stay to the LEFT of the corner.
-      x = math.min(x, cornerOrigin.dx);
+    // --- Spine attachment & Edge bounding ---
+    if (curlAxis == CurlAxis.vertical) {
+      // For vertical curling, the "spine" is horizontal (top/bottom edge).
+      if (cornerOrigin.dy >= pageSize.height / 2) {
+        // Bottom corner — touch must stay ABOVE the corner.
+        y = math.min(y, cornerOrigin.dy);
+      } else {
+        // Top corner — touch must stay BELOW the corner.
+        y = math.max(y, cornerOrigin.dy);
+      }
+      // Reasonable horizontal bounds
+      x = x.clamp(-pageSize.width * 0.1, pageSize.width * 1.1);
     } else {
-      // Left corner — touch must stay to the RIGHT of the corner.
-      x = math.max(x, cornerOrigin.dx);
+      // Horizontal or Both
+      if (cornerOrigin.dx >= pageSize.width / 2) {
+        // Right corner — touch must stay to the LEFT of the corner.
+        x = math.min(x, cornerOrigin.dx);
+      } else {
+        // Left corner — touch must stay to the RIGHT of the corner.
+        x = math.max(x, cornerOrigin.dx);
+      }
+      // Reasonable vertical bounds
+      y = y.clamp(-pageSize.height * 0.1, pageSize.height * 1.1);
     }
-
-    // Keep within reasonable vertical bounds.
-    y = y.clamp(-pageSize.height * 0.1, pageSize.height * 1.1);
 
     // --- Axis locking ---
     switch (curlAxis) {

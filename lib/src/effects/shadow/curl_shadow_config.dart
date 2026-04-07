@@ -1,5 +1,7 @@
 import 'dart:ui';
 
+import '../../config/curl_defaults.dart';
+
 /// Configuration for the shadow effects rendered during a page curl.
 ///
 /// Two distinct shadow types are supported:
@@ -23,18 +25,18 @@ class CurlShadowConfig {
   const CurlShadowConfig({
     this.edgeShadowStartColor = const Color(0xFF000000),
     this.edgeShadowEndColor = const Color(0xFF000000),
-    this.edgeShadowStartAlpha = 0.25,
-    this.edgeShadowEndAlpha = 0.0,
+    this.edgeShadowStartAlpha = CurlDefaults.edgeShadowStartAlpha,
+    this.edgeShadowEndAlpha = CurlDefaults.edgeShadowEndAlpha,
     this.edgeShadowMinWidth = 3.0,
     this.edgeShadowMaxWidth = 30.0,
-    this.edgeShadowWidthRatio = 0.3,
+    this.edgeShadowWidthRatio = CurlDefaults.edgeShadowWidthMultiplier,
     this.baseShadowStartColor = const Color(0xFF000000),
     this.baseShadowEndColor = const Color(0xFF000000),
-    this.baseShadowStartAlpha = 0.15,
-    this.baseShadowEndAlpha = 0.0,
+    this.baseShadowStartAlpha = CurlDefaults.baseShadowStartAlpha,
+    this.baseShadowEndAlpha = CurlDefaults.baseShadowEndAlpha,
     this.baseShadowMinWidth = 5.0,
     this.baseShadowMaxWidth = 40.0,
-    this.baseShadowWidthRatio = 0.4,
+    this.baseShadowWidthRatio = CurlDefaults.baseShadowWidthMultiplier,
   });
 
   // ---------------------------------------------------------------------------

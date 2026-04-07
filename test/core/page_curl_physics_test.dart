@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:page_curl_effect/src/core/page_curl_physics.dart';
+import 'package:page_curl_effect/page_curl_effect.dart';
 import 'package:vector_math/vector_math_64.dart' show Vector3;
 
 void main() {
@@ -141,23 +141,27 @@ void main() {
   // -------------------------------------------------------------------------
 
   group('isInHotspot', () {
-    test('returns true for touch in left hotspot', () {
+    test('returns true for touch in left hotspot (horizontal axis)', () {
       expect(
-        PageCurlPhysics.isInHotspot(const Offset(10, 300), pageSize, 0.25),
+        PageCurlPhysics.isInHotspot(const Offset(10, 300), pageSize, 0.25, CurlAxis.horizontal),
         isTrue,
       );
     });
 
-    test('returns true for touch in right hotspot', () {
+    test('returns true for touch in right hotspot (horizontal axis)', () {
       expect(
-        PageCurlPhysics.isInHotspot(const Offset(390, 300), pageSize, 0.25),
+        PageCurlPhysics.isInHotspot(const Offset(390, 300), pageSize, 0.25, CurlAxis.horizontal), isTrue);
+    });
+
+    test('returns true for touch in top hotspot (vertical axis)', () {
+      expect(PageCurlPhysics.isInHotspot(const Offset(200, 10), pageSize, 0.25, CurlAxis.vertical),
         isTrue,
       );
     });
 
     test('returns false for touch in center', () {
       expect(
-        PageCurlPhysics.isInHotspot(const Offset(200, 300), pageSize, 0.25),
+        PageCurlPhysics.isInHotspot(const Offset(200, 300), pageSize, 0.25, CurlAxis.both),
         isFalse,
       );
     });
@@ -196,20 +200,27 @@ void main() {
   // -------------------------------------------------------------------------
 
   group('computeFlipCompletionTarget', () {
-    test('bottom-right corner → target is bottom-left', () {
+    test('bottom-right corner → target is bottom-left (horizontal axis)', () {
       final target = PageCurlPhysics.computeFlipCompletionTarget(
         bottomRight,
         pageSize,
+        CurlAxis.horizontal,
       );
       expect(target, equals(Offset(0, 600)));
     });
 
-    test('bottom-left corner → target is bottom-right', () {
+    test('bottom-left corner → target is bottom-right (horizontal axis)', () {
       final target = PageCurlPhysics.computeFlipCompletionTarget(
         bottomLeft,
         pageSize,
+        CurlAxis.horizontal,
       );
       expect(target, equals(Offset(400, 600)));
+    });
+
+    test('bottom-right corner → target is top-right (vertical axis)', () {
+      final target = PageCurlPhysics.computeFlipCompletionTarget(bottomRight, pageSize, CurlAxis.vertical);
+      expect(target, equals(Offset(400, 0)));
     });
   });
 

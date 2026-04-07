@@ -2,6 +2,7 @@ import 'package:flutter/animation.dart';
 
 import '../core/curl_axis.dart';
 import '../effects/shadow/curl_shadow_config.dart';
+import 'curl_defaults.dart';
 
 /// Master configuration for the [PageCurlView] widget.
 ///
@@ -26,18 +27,18 @@ class PageCurlConfig {
   /// All parameters have sensible defaults tuned for a book-reading
   /// experience.
   const PageCurlConfig({
-    this.hotspotRatio = 0.25,
-    this.semiPerimeterRatio = 0.8,
-    this.foldBackMaskAlpha = 0.6,
-    this.animationDuration = const Duration(milliseconds: 400),
-    this.animationCurve = Curves.easeOut,
-    this.snapBackCurve = Curves.easeOut,
+    this.hotspotRatio = CurlDefaults.hotspotRatio,
+    this.semiPerimeterRatio = CurlDefaults.semiPerimeterRatio,
+    this.foldBackMaskAlpha = CurlDefaults.foldBackMaskAlpha,
+    this.animationDuration = CurlDefaults.animationDuration,
+    this.animationCurve = CurlDefaults.animationCurve,
+    this.snapBackCurve = CurlDefaults.snapBackCurve,
     this.enableClickToFlip = true,
-    this.clickToFlipWidthRatio = 0.5,
-    this.flingVelocityThreshold = 800.0,
-    this.dragCompletionThreshold = 0.35,
-    this.curlAxis = CurlAxis.both,
-    this.verticalElasticityRatio = 0.15,
+    this.clickToFlipWidthRatio = CurlDefaults.clickToFlipWidthRatio,
+    this.flingVelocityThreshold = CurlDefaults.flingVelocityThreshold,
+    this.dragCompletionThreshold = CurlDefaults.dragCompletionThreshold,
+    this.curlAxis = CurlDefaults.curlAxis,
+    this.verticalElasticityRatio = CurlDefaults.verticalElasticityRatio,
     this.shadowConfig = const CurlShadowConfig(),
   });
 
