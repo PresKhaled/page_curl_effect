@@ -19,6 +19,7 @@ library;
 // Configuration
 export 'src/config/page_curl_config.dart';
 // Core
+export 'src/core/curl_axis.dart';
 export 'src/core/curl_direction.dart';
 export 'src/core/curl_state.dart';
 export 'src/core/page_curl_controller.dart';

@@ -1,15 +1,26 @@
 import 'package:flutter/widgets.dart';
 
 import '../config/page_curl_config.dart';
+import '../core/curl_axis.dart';
 import '../core/page_curl_controller.dart';
 
 /// A widget that wraps its [child] with gesture detection for the page
 /// curl effect.
 ///
-/// This handler intercepts horizontal drag gestures in the hotspot zones
+/// This handler intercepts drag gestures in the hotspot zones
 /// (defined by [PageCurlConfig.hotspotRatio]) and forwards them to the
 /// [PageCurlController]. It also handles tap gestures for click-to-flip
 /// when enabled.
+///
+/// ### Gesture Recognizer Selection
+///
+/// The gesture recognizer is chosen based on [PageCurlConfig.curlAxis]:
+///
+/// - **horizontal**: Uses `onHorizontalDrag*` — avoids conflict with
+///   vertical scrollables.
+/// - **vertical**: Uses `onVerticalDrag*` — avoids conflict with
+///   horizontal scrollables.
+/// - **both**: Uses `onPan*` — captures movement in any direction.
 ///
 /// ### Design Decisions
 ///
@@ -31,7 +42,7 @@ class CurlGestureHandler extends StatelessWidget {
   /// The page curl controller to forward gestures to.
   final PageCurlController controller;
 
-  /// Master configuration (used for click-to-flip settings).
+  /// Master configuration (used for click-to-flip and axis settings).
   final PageCurlConfig config;
 
   /// The child widget to wrap.
@@ -39,16 +50,37 @@ class CurlGestureHandler extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      // -- Drag gestures --
-      onHorizontalDragStart: _onDragStart,
-      onHorizontalDragUpdate: _onDragUpdate,
-      onHorizontalDragEnd: _onDragEnd,
-      // -- Tap gesture (click-to-flip) --
-      onTapUp: config.enableClickToFlip ? _onTapUp : null,
-      child: child,
-    );
+    switch (config.curlAxis) {
+      case CurlAxis.horizontal:
+        return GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onHorizontalDragStart: _onDragStart,
+          onHorizontalDragUpdate: _onDragUpdate,
+          onHorizontalDragEnd: _onDragEnd,
+          onTapUp: config.enableClickToFlip ? _onTapUp : null,
+          child: child,
+        );
+
+      case CurlAxis.vertical:
+        return GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onVerticalDragStart: _onDragStart,
+          onVerticalDragUpdate: _onDragUpdate,
+          onVerticalDragEnd: _onDragEnd,
+          onTapUp: config.enableClickToFlip ? _onTapUp : null,
+          child: child,
+        );
+
+      case CurlAxis.both:
+        return GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onPanStart: _onDragStart,
+          onPanUpdate: _onDragUpdate,
+          onPanEnd: _onDragEnd,
+          onTapUp: config.enableClickToFlip ? _onTapUp : null,
+          child: child,
+        );
+    }
   }
 
   // ---------------------------------------------------------------------------

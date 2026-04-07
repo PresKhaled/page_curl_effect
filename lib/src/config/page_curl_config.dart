@@ -1,5 +1,6 @@
 import 'package:flutter/animation.dart';
 
+import '../core/curl_axis.dart';
 import '../effects/shadow/curl_shadow_config.dart';
 
 /// Master configuration for the [PageCurlView] widget.
@@ -35,6 +36,7 @@ class PageCurlConfig {
     this.clickToFlipWidthRatio = 0.5,
     this.flingVelocityThreshold = 800.0,
     this.dragCompletionThreshold = 0.35,
+    this.curlAxis = CurlAxis.horizontal,
     this.shadowConfig = const CurlShadowConfig(),
   });
 
@@ -95,6 +97,13 @@ class PageCurlConfig {
   /// Range: 0.0 (fully transparent) – 1.0 (fully opaque). Defaults to 0.6.
   final double foldBackMaskAlpha;
 
+  /// The axis along which the page curl is allowed.
+  ///
+  /// - [CurlAxis.horizontal]: Only horizontal curl (left/right). Default.
+  /// - [CurlAxis.vertical]: Only vertical curl (up/down).
+  /// - [CurlAxis.both]: Free-form curl in any direction.
+  final CurlAxis curlAxis;
+
   // ---------------------------------------------------------------------------
   // Animation
   // ---------------------------------------------------------------------------
@@ -127,6 +136,7 @@ class PageCurlConfig {
     double? clickToFlipWidthRatio,
     double? flingVelocityThreshold,
     double? dragCompletionThreshold,
+    CurlAxis? curlAxis,
     CurlShadowConfig? shadowConfig,
   }) {
     return PageCurlConfig(
@@ -143,6 +153,7 @@ class PageCurlConfig {
           flingVelocityThreshold ?? this.flingVelocityThreshold,
       dragCompletionThreshold:
           dragCompletionThreshold ?? this.dragCompletionThreshold,
+      curlAxis: curlAxis ?? this.curlAxis,
       shadowConfig: shadowConfig ?? this.shadowConfig,
     );
   }

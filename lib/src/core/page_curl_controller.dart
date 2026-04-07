@@ -198,7 +198,15 @@ class PageCurlController {
   /// Called on each drag update with the new [position].
   void onDragUpdate(Offset position) {
     if (_state != CurlState.dragging) return;
-    _touchPointNotifier.value = position;
+
+    // Constrain the touch to prevent detached-page look and enforce axis.
+    final constrained = PageCurlPhysics.constrainTouchPoint(
+      position,
+      _cornerOrigin,
+      _pageSize,
+      config.curlAxis,
+    );
+    _touchPointNotifier.value = constrained;
   }
 
   /// Called when the drag gesture ends.

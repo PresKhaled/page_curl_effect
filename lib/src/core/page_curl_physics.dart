@@ -3,6 +3,8 @@ import 'dart:ui';
 
 import 'package:vector_math/vector_math_64.dart' show Matrix4;
 
+import 'curl_axis.dart';
+
 /// Immutable value object representing the fold line that divides a page
 /// into its flat (uncurled) and curled regions during a page curl.
 ///
@@ -279,6 +281,57 @@ class PageCurlPhysics {
     // We mirror only the X coordinate to simulate a horizontal page flip.
     final targetX = cornerOrigin.dx < pageSize.width / 2 ? pageSize.width : 0.0;
     return Offset(targetX, cornerOrigin.dy);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Touch Point Constraints
+  // ---------------------------------------------------------------------------
+
+  /// Constrains [touchPoint] to prevent the page from appearing detached
+  /// from the book spine, and enforces [CurlAxis] locking.
+  ///
+  /// Two constraints are applied:
+  ///
+  /// 1. **Spine attachment**: The touch cannot move past the corner origin
+  ///    horizontally (e.g., dragging a right-corner curl further right
+  ///    would make the page look like a loose sheet).
+  ///
+  /// 2. **Axis locking**: Based on [curlAxis], one of the touch coordinates
+  ///    is locked to the corner origin to produce a purely horizontal or
+  ///    vertical flip.
+  static Offset constrainTouchPoint(
+    Offset touchPoint,
+    Offset cornerOrigin,
+    Size pageSize,
+    CurlAxis curlAxis,
+  ) {
+    var x = touchPoint.dx;
+    var y = touchPoint.dy;
+
+    // --- Spine attachment constraint ---
+    // Prevent the touch from going past the corner in the drag direction.
+    if (cornerOrigin.dx >= pageSize.width / 2) {
+      // Right corner — touch must stay to the LEFT of the corner.
+      x = math.min(x, cornerOrigin.dx);
+    } else {
+      // Left corner — touch must stay to the RIGHT of the corner.
+      x = math.max(x, cornerOrigin.dx);
+    }
+
+    // Keep within reasonable vertical bounds.
+    y = y.clamp(-pageSize.height * 0.1, pageSize.height * 1.1);
+
+    // --- Axis locking ---
+    switch (curlAxis) {
+      case CurlAxis.horizontal:
+        y = cornerOrigin.dy;
+      case CurlAxis.vertical:
+        x = cornerOrigin.dx;
+      case CurlAxis.both:
+        break; // No additional constraint.
+    }
+
+    return Offset(x, y);
   }
 
   // ---------------------------------------------------------------------------

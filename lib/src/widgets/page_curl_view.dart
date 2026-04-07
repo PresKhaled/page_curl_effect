@@ -186,10 +186,10 @@ class _PageCurlViewState extends State<PageCurlView>
   }
 
   void _onTouchPointChanged() {
-    // When the state transitions from idle to dragging, schedule a capture.
-    if (_controller.state == CurlState.dragging &&
-        _currentPageImage == null &&
-        !_captureScheduled) {
+    // Schedule capture when transitioning from idle to any active state
+    // (dragging or animating) and we don't yet have valid images.
+    final isActive = _controller.state != CurlState.idle;
+    if (isActive && _currentPageImage == null && !_captureScheduled) {
       _scheduleCaptureAfterFrame();
     }
     if (mounted) setState(() {});
@@ -237,6 +237,22 @@ class _PageCurlViewState extends State<PageCurlView>
   }
 
   // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+
+  /// Computes the under-page index based on current controller state.
+  int _computeUnderPageIndex() {
+    final currentPage = _controller.currentPage;
+    return _controller.direction == CurlDirection.forward
+        ? (currentPage + 1).clamp(0, widget.itemCount - 1)
+        : (currentPage - 1).clamp(0, widget.itemCount - 1);
+  }
+
+  /// Whether the curl overlay has valid images and should be shown.
+  bool get _hasValidImages =>
+      _currentPageImage != null && _underPageImage != null;
+
+  // ---------------------------------------------------------------------------
   // Build
   // ---------------------------------------------------------------------------
 
@@ -249,11 +265,10 @@ class _PageCurlViewState extends State<PageCurlView>
 
         final currentPage = _controller.currentPage;
         final isActive = _controller.state != CurlState.idle;
+        final underPageIndex = _computeUnderPageIndex();
 
-        // Determine the under-page index based on curl direction.
-        final underPageIndex = _controller.direction == CurlDirection.forward
-            ? (currentPage + 1).clamp(0, widget.itemCount - 1)
-            : (currentPage - 1).clamp(0, widget.itemCount - 1);
+        // Whether the overlay is ready (active AND images captured).
+        final showOverlay = isActive && _hasValidImages;
 
         return CurlGestureHandler(
           controller: _controller,
@@ -261,43 +276,35 @@ class _PageCurlViewState extends State<PageCurlView>
           child: Stack(
             children: [
               // ---------------------------------------------------------------
-              // Under-page — always present for rasterisation; hidden when not
-              // actively curling.
+              // Under-page — always painted in the stack (covered by the
+              // current page above it). NO Offstage — this ensures
+              // RepaintBoundary can always be captured by toImage().
               // ---------------------------------------------------------------
               Positioned.fill(
-                child: Offstage(
-                  offstage: isActive,
-                  child: RepaintBoundary(
-                    key: _underPageBoundaryKey,
-                    child: widget.itemBuilder(context, underPageIndex),
-                  ),
+                child: RepaintBoundary(
+                  key: _underPageBoundaryKey,
+                  child: widget.itemBuilder(context, underPageIndex),
                 ),
               ),
 
               // ---------------------------------------------------------------
-              // Current page — visible in idle state; hidden during curl
-              // (replaced by the painter).
+              // Current page — always painted on top of under-page.
+              // When the overlay is showing, it visually covers this widget,
+              // but we keep it painted so toImage() always works.
               // ---------------------------------------------------------------
               Positioned.fill(
-                child: Offstage(
-                  offstage:
-                      isActive &&
-                      _currentPageImage != null &&
-                      _underPageImage != null,
-                  child: RepaintBoundary(
-                    key: _currentPageBoundaryKey,
-                    child: widget.itemBuilder(context, currentPage),
-                  ),
+                child: RepaintBoundary(
+                  key: _currentPageBoundaryKey,
+                  child: widget.itemBuilder(context, currentPage),
                 ),
               ),
 
               // ---------------------------------------------------------------
-              // Curl effect overlay (visible only during active curl with
-              // captured images).
+              // Curl effect overlay — fully covers both pages below when
+              // active, producing the fold illusion. Only shown when we
+              // have valid raster images.
               // ---------------------------------------------------------------
-              if (isActive &&
-                  _currentPageImage != null &&
-                  _underPageImage != null)
+              if (showOverlay)
                 Positioned.fill(
                   child: CustomPaint(
                     painter: PageCurlPainter(
