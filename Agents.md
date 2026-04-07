@@ -45,7 +45,7 @@ widgets/PageCurlView (StatefulWidget)
   │
   ├── rendering/WidgetRasterizer (Widget → ui.Image capture)
   │
-  └── config/PageCurlConfig + CurlShadowConfig (immutable DTOs)
+  └── config/PageCurlConfig, CurlShadowConfig + CurlDefaults (constants)
 ```
 
 ### Dependency Direction (strict, never reverse)
@@ -72,10 +72,13 @@ core → config
 
 ### `lib/src/config/page_curl_config.dart`
 Master configuration class. Contains all tuneable parameters:
-- Gesture: `hotspotRatio`, `enableClickToFlip`, `clickToFlipWidthRatio`
+- Gesture: `hotspotRatio`, `enableClickToFlip`, `clickToFlipWidthRatio`, `curlAxis`, `verticalElasticityRatio`
 - Animation: `animationDuration`, `animationCurve`, `snapBackCurve`, `flingVelocityThreshold`, `dragCompletionThreshold`
 - Geometry: `semiPerimeterRatio`, `foldBackMaskAlpha`
 - Shadow: `shadowConfig` (delegates to `CurlShadowConfig`)
+
+### `lib/src/config/curl_defaults.dart`
+Centralised constants to avoid magic numbers. Used as fallback for `PageCurlConfig` and `CurlShadowConfig`.
 
 ### `lib/src/core/curl_state.dart`
 Enum: `idle`, `dragging`, `animatingForward`, `animatingBackward`, `completed`

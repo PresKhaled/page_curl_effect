@@ -1,3 +1,14 @@
+## 0.1.1
+
+### 🐛 Bug Fixes & Refinements
+
+- **Vertical Page Curl**: Fully implemented vertical axis (`CurlAxis.vertical`) with proper direction inference, hotspot detection, and spine bounding constraints.
+- **Elasticity Axis**: Added `CurlAxis.horizontalWithVerticalElasticity` (now default) to allow realistic vertical bending while tearing pages horizontally without detaching the paper.
+- **Page Caching**: Fixed a bug where external controllers failed to drop the rasterized cache, leading to the first page permanently appearing across all curls.
+- **Constants Extraction**: Centralized magic numbers to `CurlDefaults` for easier config maintenance.
+
+---
+
 ## 0.1.0
 
 ### 🎉 Initial Release

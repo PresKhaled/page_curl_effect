@@ -115,6 +115,8 @@ _controller.jumpToPage(5);   // Jump without animation
 | `clickToFlipWidthRatio` | `double` | `0.5` | Boundary ratio for left/right tap zones |
 | `flingVelocityThreshold` | `double` | `800.0` | Min fling velocity (px/s) to auto-complete a flip |
 | `dragCompletionThreshold` | `double` | `0.35` | Min normalised drag distance to auto-complete on release |
+| `curlAxis` | `CurlAxis` | `horizontalWithVerticalElasticity` | Restriction axis (horizontal, vertical, both, or horizontal with elasticity) |
+| `verticalElasticityRatio` | `double` | `0.15` | Limit for vertical bending when `curlAxis` uses elasticity |
 | `shadowConfig` | `CurlShadowConfig` | *(defaults)* | Shadow appearance configuration |
 
 ### CurlShadowConfig
@@ -124,14 +126,14 @@ Controls the dual-layer shadow system:
 ```dart
 const CurlShadowConfig(
   // Edge shadow (at the fold crease)
-  edgeShadowStartAlpha: 0.25,
+  edgeShadowStartAlpha: 0.3,
   edgeShadowEndAlpha: 0.0,
   edgeShadowMinWidth: 3.0,
   edgeShadowMaxWidth: 30.0,
   edgeShadowWidthRatio: 0.3,
 
   // Base shadow (cast on the under-page)
-  baseShadowStartAlpha: 0.15,
+  baseShadowStartAlpha: 0.2,
   baseShadowEndAlpha: 0.0,
   baseShadowMinWidth: 5.0,
   baseShadowMaxWidth: 40.0,
@@ -191,6 +193,7 @@ lib/
 | `FoldLine` | Immutable value object for fold line geometry |
 | `CurlState` | Enum: `idle`, `dragging`, `animatingForward`, `animatingBackward`, `completed` |
 | `CurlDirection` | Enum: `forward`, `backward` |
+| `CurlAxis` | Enum: `horizontal`, `vertical`, `both`, `horizontalWithVerticalElasticity` |
 
 ---
 
