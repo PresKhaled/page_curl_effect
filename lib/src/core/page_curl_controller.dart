@@ -205,6 +205,7 @@ class PageCurlController {
       _cornerOrigin,
       _pageSize,
       config.curlAxis,
+      verticalElasticityRatio: config.verticalElasticityRatio,
     );
     _touchPointNotifier.value = constrained;
   }

@@ -303,8 +303,9 @@ class PageCurlPhysics {
     Offset touchPoint,
     Offset cornerOrigin,
     Size pageSize,
-    CurlAxis curlAxis,
-  ) {
+    CurlAxis curlAxis, {
+    double verticalElasticityRatio = 0.15,
+  }) {
     var x = touchPoint.dx;
     var y = touchPoint.dy;
 
@@ -329,6 +330,9 @@ class PageCurlPhysics {
         x = cornerOrigin.dx;
       case CurlAxis.both:
         break; // No additional constraint.
+      case CurlAxis.horizontalWithVerticalElasticity:
+        final elasticity = pageSize.height * verticalElasticityRatio;
+        y = y.clamp(cornerOrigin.dy - elasticity, cornerOrigin.dy + elasticity);
     }
 
     return Offset(x, y);

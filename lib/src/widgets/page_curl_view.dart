@@ -117,6 +117,11 @@ class _PageCurlViewState extends State<PageCurlView>
   /// Tracks whether a capture is pending to avoid redundant captures.
   bool _captureScheduled = false;
 
+  /// Tracks the page index at last capture. Used to detect page changes
+  /// and invalidate cached images — critical for external controllers
+  /// where [onPageChanged] is not connected to this view.
+  int _lastKnownPage = -1;
+
   // ---------------------------------------------------------------------------
   // Lifecycle
   // ---------------------------------------------------------------------------
@@ -158,6 +163,7 @@ class _PageCurlViewState extends State<PageCurlView>
       _ownsController = true;
     }
 
+    _lastKnownPage = _controller.currentPage;
     _controller.touchPointNotifier.addListener(_onTouchPointChanged);
   }
 
@@ -186,6 +192,14 @@ class _PageCurlViewState extends State<PageCurlView>
   }
 
   void _onTouchPointChanged() {
+    // Detect page changes (works for both internal and external controllers).
+    // When the controller's currentPage differs from our last-known page,
+    // the cached images are stale and must be discarded.
+    if (_controller.currentPage != _lastKnownPage) {
+      _lastKnownPage = _controller.currentPage;
+      _disposeImages();
+    }
+
     // Schedule capture when transitioning from idle to any active state
     // (dragging or animating) and we don't yet have valid images.
     final isActive = _controller.state != CurlState.idle;

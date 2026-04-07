@@ -19,4 +19,11 @@ enum CurlAxis {
   ///
   /// The user can drag in any direction, allowing diagonal curls.
   both,
+
+  /// Primarily horizontal curl, but with limited vertical flexibility.
+  ///
+  /// The user can drag freely horizontally, but vertical movement is clamped
+  /// to a slight elasticity to simulate twisting a page slightly up or down
+  /// without pulling it completely off-axis.
+  horizontalWithVerticalElasticity,
 }

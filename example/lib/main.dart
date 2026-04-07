@@ -34,7 +34,8 @@ class PageCurlDemo extends StatefulWidget {
 
 class _PageCurlDemoState extends State<PageCurlDemo>
     with TickerProviderStateMixin {
-  late final PageCurlController _controller;
+  late PageCurlController _controller;
+  CurlAxis _selectedAxis = CurlAxis.horizontalWithVerticalElasticity;
 
   static const _totalPages = 10;
 
@@ -55,18 +56,32 @@ class _PageCurlDemoState extends State<PageCurlDemo>
   @override
   void initState() {
     super.initState();
+    _initController();
+  }
+
+  void _initController() {
     _controller = PageCurlController(
       vsync: this,
-      config: const PageCurlConfig(
-        animationDuration: Duration(milliseconds: 500),
+      config: PageCurlConfig(
+        animationDuration: const Duration(milliseconds: 500),
         animationCurve: Curves.easeInOut,
         hotspotRatio: 0.3,
+        curlAxis: _selectedAxis,
       ),
       itemCount: _totalPages,
       onPageChanged: (page) {
         if (mounted) setState(() {});
       },
     );
+  }
+
+  void _onAxisChanged(CurlAxis? newAxis) {
+    if (newAxis == null || newAxis == _selectedAxis) return;
+    _controller.dispose();
+    setState(() {
+      _selectedAxis = newAxis;
+      _initController();
+    });
   }
 
   @override
@@ -87,6 +102,23 @@ class _PageCurlDemoState extends State<PageCurlDemo>
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),
+            child: DropdownButton<CurlAxis>(
+              value: _selectedAxis,
+              dropdownColor: const Color(0xFF3E2723),
+              underline: const SizedBox(),
+              icon: const Icon(Icons.swap_vert, color: Colors.white70),
+              style: const TextStyle(fontSize: 14, color: Colors.white),
+              items: CurlAxis.values.map((axis) {
+                return DropdownMenuItem(
+                  value: axis,
+                  child: Text(axis.name, style: const TextStyle(fontSize: 14)),
+                );
+              }).toList(),
+              onChanged: _onAxisChanged,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
             child: Center(
               child: Text(
                 'Page ${_controller.currentPage + 1} / $_totalPages',
@@ -103,6 +135,7 @@ class _PageCurlDemoState extends State<PageCurlDemo>
           child: PageCurlView(
             itemCount: _totalPages,
             controller: _controller,
+            config: _controller.config,
             itemBuilder: (context, index) => _buildPage(index),
           ),
         ),

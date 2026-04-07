@@ -72,6 +72,7 @@ class CurlGestureHandler extends StatelessWidget {
         );
 
       case CurlAxis.both:
+      case CurlAxis.horizontalWithVerticalElasticity:
         return GestureDetector(
           behavior: HitTestBehavior.translucent,
           onPanStart: _onDragStart,

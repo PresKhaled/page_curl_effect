@@ -36,7 +36,8 @@ class PageCurlConfig {
     this.clickToFlipWidthRatio = 0.5,
     this.flingVelocityThreshold = 800.0,
     this.dragCompletionThreshold = 0.35,
-    this.curlAxis = CurlAxis.horizontal,
+    this.curlAxis = CurlAxis.both,
+    this.verticalElasticityRatio = 0.15,
     this.shadowConfig = const CurlShadowConfig(),
   });
 
@@ -102,7 +103,15 @@ class PageCurlConfig {
   /// - [CurlAxis.horizontal]: Only horizontal curl (left/right). Default.
   /// - [CurlAxis.vertical]: Only vertical curl (up/down).
   /// - [CurlAxis.both]: Free-form curl in any direction.
+  /// - [CurlAxis.horizontalWithVerticalElasticity]: Horizontal curl with slight vertical elasticity.
   final CurlAxis curlAxis;
+
+  /// The ratio of the page height that limits vertical movement when
+  /// [curlAxis] is set to [CurlAxis.horizontalWithVerticalElasticity].
+  ///
+  /// For instance, 0.15 allows vertical movement up to 15% of the page height
+  /// from the corner origin.
+  final double verticalElasticityRatio;
 
   // ---------------------------------------------------------------------------
   // Animation
@@ -137,6 +146,7 @@ class PageCurlConfig {
     double? flingVelocityThreshold,
     double? dragCompletionThreshold,
     CurlAxis? curlAxis,
+    double? verticalElasticityRatio,
     CurlShadowConfig? shadowConfig,
   }) {
     return PageCurlConfig(
@@ -154,6 +164,8 @@ class PageCurlConfig {
       dragCompletionThreshold:
           dragCompletionThreshold ?? this.dragCompletionThreshold,
       curlAxis: curlAxis ?? this.curlAxis,
+      verticalElasticityRatio:
+          verticalElasticityRatio ?? this.verticalElasticityRatio,
       shadowConfig: shadowConfig ?? this.shadowConfig,
     );
   }
