@@ -1,0 +1,21 @@
+name: page_curl_effect_example
+description: Example app demonstrating the Page Curl Effect package.
+
+publish_to: 'none'
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  page_curl_effect:
+    path: ../
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
