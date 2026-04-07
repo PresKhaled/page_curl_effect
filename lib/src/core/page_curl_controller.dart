@@ -154,6 +154,7 @@ class PageCurlController {
 
   /// Updates the known page size. Must be called whenever the layout changes.
   void setPageSize(Size size) {
+    if (_disposed) return;
     _pageSize = size;
   }
 
@@ -166,6 +167,7 @@ class PageCurlController {
   /// Returns `true` if the drag was accepted (started in a hotspot and
   /// the flip direction is valid). Returns `false` otherwise.
   bool onDragStart(Offset position) {
+    if (_disposed) return false;
     if (_state != CurlState.idle) return false;
     if (_pageSize == Size.zero) return false;
 
@@ -203,6 +205,7 @@ class PageCurlController {
 
   /// Called on each drag update with the new [position].
   void onDragUpdate(Offset position) {
+    if (_disposed) return;
     if (_state != CurlState.dragging) return;
 
     // Constrain the touch to prevent detached-page look and enforce axis.
@@ -220,6 +223,7 @@ class PageCurlController {
   ///
   /// [velocity] is the fling velocity in logical pixels/second.
   void onDragEnd({Offset velocity = Offset.zero}) {
+    if (_disposed) return;
     if (_state != CurlState.dragging) return;
 
     _releasePoint = _touchPointNotifier.value;
@@ -253,6 +257,7 @@ class PageCurlController {
 
   /// Programmatically flips to the next page with animation.
   void flipForward() {
+    if (_disposed) return;
     if (_state != CurlState.idle) return;
     if (!_canFlip(CurlDirection.forward)) return;
 
@@ -281,6 +286,7 @@ class PageCurlController {
 
   /// Programmatically flips to the previous page with animation.
   void flipBackward() {
+    if (_disposed) return;
     if (_state != CurlState.idle) return;
     if (!_canFlip(CurlDirection.backward)) return;
 
@@ -309,6 +315,7 @@ class PageCurlController {
 
   /// Jumps directly to [page] without animation.
   void jumpToPage(int page) {
+    if (_disposed) return;
     if (page < 0 || page >= itemCount) return;
     if (_state != CurlState.idle) return;
     _currentPage = page;
@@ -335,6 +342,7 @@ class PageCurlController {
   // ---------------------------------------------------------------------------
 
   void _onAnimationTick() {
+    if (_disposed) return;
     final t = _state == CurlState.animatingForward
         ? config.animationCurve.transform(_animationController.value)
         : config.snapBackCurve.transform(_animationController.value);
@@ -347,6 +355,7 @@ class PageCurlController {
   }
 
   void _onAnimationStatusChanged(AnimationStatus status) {
+    if (_disposed) return;
     if (status != AnimationStatus.completed) return;
 
     _animationController.removeListener(_onAnimationTick);

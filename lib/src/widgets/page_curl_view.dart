@@ -257,6 +257,7 @@ class _PageCurlViewState extends State<PageCurlView>
 
   /// Computes the under-page index based on current controller state.
   int _computeUnderPageIndex() {
+    if (widget.itemCount <= 0) return 0;
     final currentPage = _controller.currentPage;
     return _controller.direction == CurlDirection.forward
         ? (currentPage + 1).clamp(0, widget.itemCount - 1)
@@ -273,8 +274,17 @@ class _PageCurlViewState extends State<PageCurlView>
 
   @override
   Widget build(BuildContext context) {
+    if (widget.itemCount <= 0) return const SizedBox.shrink();
+
     return LayoutBuilder(
       builder: (context, constraints) {
+        if (!constraints.hasBoundedWidth || !constraints.hasBoundedHeight) {
+          return const SizedBox.shrink();
+        }
+        if (constraints.maxWidth <= 0 || constraints.maxHeight <= 0) {
+          return const SizedBox.shrink();
+        }
+
         final size = Size(constraints.maxWidth, constraints.maxHeight);
         _controller.setPageSize(size);
 
