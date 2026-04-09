@@ -1,3 +1,5 @@
+import 'dart:ui' show Offset, Size, TextDirection;
+
 import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 
@@ -147,15 +149,25 @@ class PageCurlController {
   Size get pageSize => _pageSize;
 
   bool _disposed = false;
+  TextDirection _textDirection = TextDirection.ltr;
+
+  /// The text direction of the parent widget, used to correctly map RTL gestures.
+  TextDirection get textDirection => _textDirection;
 
   // ---------------------------------------------------------------------------
-  // Public API — Page Size
+  // Public API — Page Size & Direction
   // ---------------------------------------------------------------------------
 
   /// Updates the known page size. Must be called whenever the layout changes.
   void setPageSize(Size size) {
     if (_disposed) return;
     _pageSize = size;
+  }
+
+  /// Updates the text direction context dynamically.
+  void setTextDirection(TextDirection direction) {
+    if (_disposed) return;
+    _textDirection = direction;
   }
 
   // ---------------------------------------------------------------------------
@@ -184,12 +196,18 @@ class PageCurlController {
     // Determine direction and validate boundaries.
     final corner = PageCurlPhysics.nearestCorner(position, _pageSize);
     final CurlDirection newDirection;
+    final isRtl = _textDirection == TextDirection.rtl;
+
     if (config.curlAxis == CurlAxis.vertical) {
       final isBottom = corner.dy >= _pageSize.height / 2;
       newDirection = isBottom ? CurlDirection.forward : CurlDirection.backward;
     } else {
       final isRight = corner.dx >= _pageSize.width / 2;
-      newDirection = isRight ? CurlDirection.forward : CurlDirection.backward;
+      if (isRtl) {
+        newDirection = isRight ? CurlDirection.backward : CurlDirection.forward;
+      } else {
+        newDirection = isRight ? CurlDirection.forward : CurlDirection.backward;
+      }
     }
 
     if (!_canFlip(newDirection)) return false;
@@ -266,8 +284,13 @@ class PageCurlController {
       _cornerOrigin = Offset(_pageSize.width, _pageSize.height);
       _releasePoint = Offset(_pageSize.width * 0.9, _pageSize.height * 0.7);
     } else {
-      _cornerOrigin = Offset(_pageSize.width, _pageSize.height);
-      _releasePoint = Offset(_pageSize.width * 0.7, _pageSize.height * 0.9);
+      if (_textDirection == TextDirection.rtl) {
+        _cornerOrigin = Offset(0, _pageSize.height);
+        _releasePoint = Offset(_pageSize.width * 0.3, _pageSize.height * 0.9);
+      } else {
+        _cornerOrigin = Offset(_pageSize.width, _pageSize.height);
+        _releasePoint = Offset(_pageSize.width * 0.7, _pageSize.height * 0.9);
+      }
     }
     _animationTarget = PageCurlPhysics.computeFlipCompletionTarget(
       _cornerOrigin,
@@ -295,8 +318,13 @@ class PageCurlController {
       _cornerOrigin = const Offset(0, 0); // Top-left corner
       _releasePoint = Offset(_pageSize.width * 0.1, _pageSize.height * 0.3);
     } else {
-      _cornerOrigin = Offset(0, _pageSize.height);
-      _releasePoint = Offset(_pageSize.width * 0.3, _pageSize.height * 0.9);
+      if (_textDirection == TextDirection.rtl) {
+        _cornerOrigin = Offset(_pageSize.width, _pageSize.height);
+        _releasePoint = Offset(_pageSize.width * 0.7, _pageSize.height * 0.9);
+      } else {
+        _cornerOrigin = Offset(0, _pageSize.height);
+        _releasePoint = Offset(_pageSize.width * 0.3, _pageSize.height * 0.9);
+      }
     }
     _animationTarget = PageCurlPhysics.computeFlipCompletionTarget(
       _cornerOrigin,

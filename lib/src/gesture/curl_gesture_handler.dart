@@ -106,12 +106,15 @@ class CurlGestureHandler extends StatelessWidget {
 
   void _onTapUp(TapUpDetails details) {
     final pos = details.localPosition;
-    final halfWidth = controller.pageSize.width * config.clickToFlipWidthRatio;
+    final width = controller.pageSize.width;
+    final isRtl = controller.textDirection == TextDirection.rtl;
 
-    if (pos.dx > halfWidth) {
-      controller.flipForward();
+    // Use a fixed midpoint to determine the flip direction in case the width ratio is small.
+    // If the tap is on the right side, flip forward (LTR) or backward (RTL).
+    if (pos.dx >= width / 2) {
+      isRtl ? controller.flipBackward() : controller.flipForward();
     } else {
-      controller.flipBackward();
+      isRtl ? controller.flipForward() : controller.flipBackward();
     }
   }
 }

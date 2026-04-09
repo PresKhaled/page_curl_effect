@@ -289,6 +289,7 @@ class _PageCurlViewState extends State<PageCurlView>
 
         final size = Size(constraints.maxWidth, constraints.maxHeight);
         _controller.setPageSize(size);
+        _controller.setTextDirection(Directionality.of(context));
 
         final currentPage = _controller.currentPage;
         final isActive = _controller.state != CurlState.idle;
