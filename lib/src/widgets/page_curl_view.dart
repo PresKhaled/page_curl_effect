@@ -139,6 +139,8 @@ class _PageCurlViewState extends State<PageCurlView>
       _disposeControllerIfOwned();
       _disposeImages();
       _initController();
+    } else {
+      _controller.itemCount = widget.itemCount;
     }
   }
 

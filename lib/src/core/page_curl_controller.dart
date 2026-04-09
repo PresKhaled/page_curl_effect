@@ -77,7 +77,7 @@ class PageCurlController {
   final PageCurlConfig config;
 
   /// Total number of pages.
-  final int itemCount;
+  int itemCount;
 
   /// The initial page index.
   final int initialPage;
