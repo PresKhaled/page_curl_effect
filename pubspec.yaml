@@ -1,6 +1,6 @@
 name: page_curl_effect
-description: "A new Flutter package project."
-version: 0.0.1
+description: "A high-performance Flutter package that delivers a realistic page curl (flip) effect for EPUB readers and book-style apps. Powered by pure 2D geometric math, CustomPainter, and a unified PageController-based API."
+version: 0.1.2
 homepage:
 
 environment:
