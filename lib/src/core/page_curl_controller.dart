@@ -1,7 +1,4 @@
-import 'dart:ui' show Offset, Size, TextDirection;
-
-import 'package:flutter/animation.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
 import '../config/page_curl_config.dart';
 import 'curl_axis.dart';
@@ -17,25 +14,51 @@ typedef OnFlipEnd = void Function(int newPage);
 
 /// Orchestrates the page curl state machine and animation lifecycle.
 ///
-/// This controller is the **brain** of the page curl effect. It:
+/// Extends Flutter's [PageController] so that **one controller instance**
+/// can serve both navigation modes of an EPUB / book reader:
 ///
-/// 1. Manages the [CurlState] transitions:
-///    `idle → dragging → animatingForward/Backward → completed → idle`
+/// | Mode | Scroll clients | Navigation |
+/// |------|---------------|-----------|
+/// | `PageView` (curl OFF) | `hasClients == true` | Delegates to [PageController] scroll physics |
+/// | `PageCurlView` (curl ON) | `hasClients == false` | Internal curl animation |
 ///
-/// 2. Owns an internal [AnimationController] that drives automatic
-///    flip animations (completion and snap-back).
+/// ### Why extend `PageController`?
 ///
-/// 3. Exposes a [touchPointNotifier] that emits the current virtual
-///    touch position each frame — consumed by [PageCurlPainter].
+/// Consumer apps that conditionally toggle the page curl effect previously had
+/// to maintain two separate controllers — a [PageController] for a regular
+/// [PageView] and a [PageCurlController] for [PageCurlView] — then keep their
+/// page-index state in sync manually. By inheriting from [PageController],
+/// one controller suffices regardless of which view is active:
 ///
-/// 4. Handles fling velocity to decide whether a release should
-///    complete or cancel the flip.
+/// ```dart
+/// final ctrl = PageCurlController(vsync: this, config: ..., itemCount: 100);
 ///
-/// ### Ownership & Lifecycle
+/// // Curl mode — pass to PageCurlView:
+/// PageCurlView(controller: ctrl, ...)
 ///
-/// This controller must be created with a [TickerProvider] (usually via
+/// // Normal mode — pass to PageView:
+/// PageView.builder(controller: ctrl, ...)
+///
+/// // Navigation works the same way in both modes:
+/// ctrl.nextPage(duration: kThemeAnimationDuration, curve: Curves.easeInOut);
+/// ctrl.jumpToPage(5);
+/// ```
+///
+/// ### `PageController` API behaviour by mode
+///
+/// * **[page]** — returns the actual scroll-position page when a [PageView]
+///   is attached; otherwise returns [currentPage] as a [double].
+/// * **[jumpToPage]** — updates [currentPage] and, when clients are attached,
+///   also jumps the underlying scroll position.
+/// * **[animateToPage]** / **[nextPage]** / **[previousPage]** — delegates to
+///   scroll animation in PageView mode; uses curl animation in curl mode.
+///
+/// ### Lifecycle
+///
+/// Must be created with a [TickerProvider] (typically via
 /// [TickerProviderStateMixin]) and **must** be [dispose]d when no longer
-/// needed.
+/// needed — this cleans up both the curl [AnimationController] and the
+/// [PageController] scroll resources.
 ///
 /// ```dart
 /// final controller = PageCurlController(
@@ -46,25 +69,32 @@ typedef OnFlipEnd = void Function(int newPage);
 /// // ...
 /// controller.dispose();
 /// ```
-class PageCurlController {
+class PageCurlController extends PageController {
   /// Creates a [PageCurlController].
   ///
-  /// - [vsync] — the [TickerProvider] for the animation controller.
-  /// - [config] — master configuration for timing, curves, thresholds.
+  /// - [vsync] — the [TickerProvider] for the internal curl animation.
+  /// - [config] — master configuration for timing, curves, and thresholds.
   /// - [itemCount] — total number of pages.
-  /// - [initialPage] — the page to display initially (defaults to 0).
-  /// - [onFlipStart] — called when a flip gesture or animation begins.
-  /// - [onFlipEnd] — called when a flip animation completes.
-  /// - [onPageChanged] — called when the current page index changes.
+  /// - [initialPage] — the page shown initially (defaults to 0). Forwarded
+  ///   to [PageController] so [PageView] starts at the correct position.
+  /// - [keepPage] — forwarded to [PageController] (relevant in PageView mode).
+  /// - [viewportFraction] — forwarded to [PageController] (PageView mode).
+  /// - [scrollBehavior] — forwarded to [PageController] (PageView mode).
+  /// - [onFlipStart] — called when a curl flip gesture or animation begins.
+  /// - [onFlipEnd] — called when a curl flip animation completes.
+  /// - [onPageChanged] — called when the current page index changes in
+  ///   **either** mode (swipe in PageView or curl flip completion).
   PageCurlController({
     required TickerProvider vsync,
     required this.config,
     required this.itemCount,
-    this.initialPage = 0,
+    super.initialPage = 0,
+    super.keepPage = true,
+    super.viewportFraction = 1.0,
     this.onFlipStart,
     this.onFlipEnd,
     this.onPageChanged,
-  }) : _currentPage = initialPage {
+  })  : _currentPage = initialPage {
     _animationController = AnimationController(
       vsync: vsync,
       duration: config.animationDuration,
@@ -75,41 +105,46 @@ class PageCurlController {
   // Configuration
   // ---------------------------------------------------------------------------
 
-  /// Master configuration.
+  /// Master configuration for the curl effect.
   final PageCurlConfig config;
 
-  /// Total number of pages.
+  /// Total number of pages managed by this controller.
   int itemCount;
-
-  /// The initial page index.
-  final int initialPage;
 
   // ---------------------------------------------------------------------------
   // Callbacks
   // ---------------------------------------------------------------------------
 
-  /// Called when a flip gesture or animation begins.
+  /// Called when a curl flip gesture or animation begins (curl mode only).
   final OnFlipStart? onFlipStart;
 
-  /// Called when a flip animation completes.
+  /// Called when a curl flip animation completes (curl mode only).
   final OnFlipEnd? onFlipEnd;
 
   /// Called when the current page index changes.
+  ///
+  /// Fires in **both** modes:
+  /// - In PageView mode: when a swipe settles on a new page.
+  /// - In curl mode: when a flip animation completes or [jumpToPage] is called.
   final ValueChanged<int>? onPageChanged;
 
   // ---------------------------------------------------------------------------
-  // State — Public
+  // State — Public (curl-specific)
   // ---------------------------------------------------------------------------
 
-  /// The current page index.
+  /// The current integer page index.
+  ///
+  /// In PageView mode this stays in sync with the scroll position via
+  /// [_syncFromScrollPosition]. In curl mode it is updated on flip completion
+  /// or [jumpToPage].
   int get currentPage => _currentPage;
   int _currentPage;
 
-  /// The current state of the curl.
+  /// The current state of the curl lifecycle (meaningful in curl mode only).
   CurlState get state => _state;
   CurlState _state = CurlState.idle;
 
-  /// The direction of the active curl (valid only when [state] ≠ idle).
+  /// The direction of the active curl (valid only when [state] ≠ [CurlState.idle]).
   CurlDirection get direction => _direction;
   CurlDirection _direction = CurlDirection.forward;
 
@@ -117,21 +152,21 @@ class PageCurlController {
   Offset get cornerOrigin => _cornerOrigin;
   Offset _cornerOrigin = Offset.zero;
 
-  /// Notifier for the current virtual touch point — consumed by the painter.
+  /// Notifier for the current virtual touch point — consumed by [PageCurlPainter].
   ///
-  /// Emits on every drag update and every animation frame.
+  /// Emits on every drag update and every animation frame in curl mode.
   ValueNotifier<Offset> get touchPointNotifier => _touchPointNotifier;
   final ValueNotifier<Offset> _touchPointNotifier = ValueNotifier<Offset>(
     Offset.zero,
   );
 
-  /// The [Animation] driving the current automatic flip.
+  /// The [Animation] driving the current automatic curl flip.
   ///
   /// Use this as the `repaint` listenable for [PageCurlPainter].
   Animation<double> get animation => _animationController;
 
   // ---------------------------------------------------------------------------
-  // State — Private
+  // State — Private (curl-specific)
   // ---------------------------------------------------------------------------
 
   late final AnimationController _animationController;
@@ -142,7 +177,7 @@ class PageCurlController {
   /// The target touch point for the current animation.
   Offset _animationTarget = Offset.zero;
 
-  /// Cached page size — set externally by the widget on layout.
+  /// Cached page size — set externally by [PageCurlView] on layout.
   Size _pageSize = Size.zero;
 
   /// The current page size. Returns [Size.zero] if not yet set.
@@ -155,7 +190,152 @@ class PageCurlController {
   TextDirection get textDirection => _textDirection;
 
   // ---------------------------------------------------------------------------
-  // Public API — Page Size & Direction
+  // PageController overrides
+  // ---------------------------------------------------------------------------
+
+  /// The logical initial page used by [PageController] when creating a new
+  /// [ScrollPosition] for an attached [PageView].
+  ///
+  /// **Why this override is critical:**
+  /// Flutter's `PageController.createScrollPosition()` passes `this.initialPage`
+  /// to the internal `_PagePosition`, which uses it to compute the starting
+  /// scroll offset during the first layout pass. Without this override,
+  /// `initialPage` would forever return the value frozen at construction time
+  /// (e.g. `0`), so switching a [PageView] on while `_currentPage == 9` would
+  /// incorrectly render page 0.
+  ///
+  /// By returning `_currentPage` here, the attached [PageView] always starts
+  /// at the correct page — with zero flicker, no post-frame callbacks, and no
+  /// need to recreate the controller.
+  @override
+  int get initialPage => _currentPage;
+
+  /// The current page as a [double].
+  ///
+  /// * **PageView mode** (`hasClients == true`): returns the fractional scroll
+  ///   position from the attached [ScrollPosition] (e.g. `0.7` mid-swipe).
+  /// * **Curl mode** (`hasClients == false`): returns [currentPage] cast to
+  ///   [double] (always an integer value).
+  @override
+  double? get page {
+    if (hasClients && positions.length == 1) {
+      return super.page;
+    }
+    return _currentPage.toDouble();
+  }
+
+  /// Jumps to [page] without animation.
+  ///
+  /// In **PageView mode**, updates [currentPage] and immediately moves the
+  /// underlying scroll position. In **curl mode**, updates [currentPage]
+  /// directly (the visual update is immediate because no scroll position
+  /// exists).
+  @override
+  void jumpToPage(int page) {
+    if (_disposed) return;
+    if (page < 0 || page >= itemCount) return;
+    // Update our internal index and notify listeners in both modes.
+    _currentPage = page;
+    onPageChanged?.call(_currentPage);
+    // Also move the scroll position when a PageView is attached.
+    if (hasClients) {
+      super.jumpToPage(page);
+    }
+  }
+
+  /// Animates to [page].
+  ///
+  /// * **PageView mode**: delegates to [PageController]'s scroll animation.
+  /// * **Curl mode**: performs an immediate [jumpToPage] (the animated curl
+  ///   experience is provided via the gesture-driven API or [flipForward] /
+  ///   [flipBackward]).
+  @override
+  Future<void> animateToPage(
+    int page, {
+    required Duration duration,
+    required Curve curve,
+  }) async {
+    if (_disposed) return;
+    if (hasClients) {
+      await super.animateToPage(page, duration: duration, curve: curve);
+    } else {
+      jumpToPage(page);
+    }
+  }
+
+  /// Animates to the next page.
+  ///
+  /// * **PageView mode**: delegates to [PageController.nextPage].
+  /// * **Curl mode**: triggers [flipForward] with a curl animation.
+  @override
+  Future<void> nextPage({
+    required Duration duration,
+    required Curve curve,
+  }) async {
+    if (_disposed) return;
+    if (hasClients) {
+      await super.nextPage(duration: duration, curve: curve);
+    } else {
+      flipForward();
+    }
+  }
+
+  /// Animates to the previous page.
+  ///
+  /// * **PageView mode**: delegates to [PageController.previousPage].
+  /// * **Curl mode**: triggers [flipBackward] with a curl animation.
+  @override
+  Future<void> previousPage({
+    required Duration duration,
+    required Curve curve,
+  }) async {
+    if (_disposed) return;
+    if (hasClients) {
+      await super.previousPage(duration: duration, curve: curve);
+    } else {
+      flipBackward();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // ScrollController hooks — bidirectional sync with PageView
+  // ---------------------------------------------------------------------------
+
+  /// Attaches a [ScrollPosition] (called automatically when a [PageView] using
+  /// this controller is built) and registers [_syncFromScrollPosition] so that
+  /// [currentPage] stays in sync while the user swipes in PageView mode.
+  @override
+  void attach(ScrollPosition position) {
+    super.attach(position);
+    position.addListener(_syncFromScrollPosition);
+  }
+
+  /// Detaches the [ScrollPosition] and removes the sync listener.
+  @override
+  void detach(ScrollPosition position) {
+    position.removeListener(_syncFromScrollPosition);
+    super.detach(position);
+  }
+
+  /// Reads the current scroll-position page and updates [_currentPage].
+  ///
+  /// Called on every scroll frame in PageView mode. Only fires [onPageChanged]
+  /// when the rounded integer page actually changes, preventing redundant
+  /// rebuilds during mid-swipe fractional values.
+  void _syncFromScrollPosition() {
+    if (_disposed) return;
+    if (!hasClients || positions.length != 1) return;
+    final rawPage = super.page;
+    if (rawPage == null) return;
+    final newPage = rawPage.round().clamp(0, itemCount - 1);
+    if (newPage != _currentPage) {
+      _currentPage = newPage;
+      onPageChanged?.call(_currentPage);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Public API — Page Size & Direction (curl mode)
   // ---------------------------------------------------------------------------
 
   /// Updates the known page size. Must be called whenever the layout changes.
@@ -171,7 +351,7 @@ class PageCurlController {
   }
 
   // ---------------------------------------------------------------------------
-  // Public API — Drag Lifecycle
+  // Public API — Drag Lifecycle (curl mode)
   // ---------------------------------------------------------------------------
 
   /// Called when a drag gesture begins at [position] (local coordinates).
@@ -183,7 +363,6 @@ class PageCurlController {
     if (_state != CurlState.idle) return false;
     if (_pageSize == Size.zero) return false;
 
-    // Check if the touch is in a hotspot.
     if (!PageCurlPhysics.isInHotspot(
       position,
       _pageSize,
@@ -193,7 +372,6 @@ class PageCurlController {
       return false;
     }
 
-    // Determine direction and validate boundaries.
     final corner = PageCurlPhysics.nearestCorner(position, _pageSize);
     final CurlDirection newDirection;
     final isRtl = _textDirection == TextDirection.rtl;
@@ -226,7 +404,6 @@ class PageCurlController {
     if (_disposed) return;
     if (_state != CurlState.dragging) return;
 
-    // Constrain the touch to prevent detached-page look and enforce axis.
     final constrained = PageCurlPhysics.constrainTouchPoint(
       position,
       _cornerOrigin,
@@ -246,7 +423,6 @@ class PageCurlController {
 
     _releasePoint = _touchPointNotifier.value;
 
-    // Decide: complete the flip or snap back.
     final shouldComplete = _shouldCompleteFlip(velocity);
 
     if (shouldComplete) {
@@ -265,15 +441,16 @@ class PageCurlController {
       _animationController.forward(from: 0);
     }
 
-    // Drive the touch point via the animation.
     _animationController.addListener(_onAnimationTick);
   }
 
   // ---------------------------------------------------------------------------
-  // Public API — Programmatic Flip
+  // Public API — Programmatic Curl Flip
   // ---------------------------------------------------------------------------
 
-  /// Programmatically flips to the next page with animation.
+  /// Programmatically flips to the next page with a curl animation.
+  ///
+  /// No-op if [state] ≠ [CurlState.idle] or already on the last page.
   void flipForward() {
     if (_disposed) return;
     if (_state != CurlState.idle) return;
@@ -307,7 +484,9 @@ class PageCurlController {
       ..forward(from: 0);
   }
 
-  /// Programmatically flips to the previous page with animation.
+  /// Programmatically flips to the previous page with a curl animation.
+  ///
+  /// No-op if [state] ≠ [CurlState.idle] or already on the first page.
   void flipBackward() {
     if (_disposed) return;
     if (_state != CurlState.idle) return;
@@ -315,7 +494,7 @@ class PageCurlController {
 
     _direction = CurlDirection.backward;
     if (config.curlAxis == CurlAxis.vertical) {
-      _cornerOrigin = const Offset(0, 0); // Top-left corner
+      _cornerOrigin = const Offset(0, 0);
       _releasePoint = Offset(_pageSize.width * 0.1, _pageSize.height * 0.3);
     } else {
       if (_textDirection == TextDirection.rtl) {
@@ -341,32 +520,30 @@ class PageCurlController {
       ..forward(from: 0);
   }
 
-  /// Jumps directly to [page] without animation.
-  void jumpToPage(int page) {
-    if (_disposed) return;
-    if (page < 0 || page >= itemCount) return;
-    if (_state != CurlState.idle) return;
-    _currentPage = page;
-    onPageChanged?.call(_currentPage);
-  }
-
   // ---------------------------------------------------------------------------
   // Disposal
   // ---------------------------------------------------------------------------
 
-  /// Disposes the internal animation controller and notifiers.
+  /// Disposes the curl [AnimationController], the [touchPointNotifier], and
+  /// the underlying [PageController] scroll resources.
+  ///
+  /// Must be called exactly once. Subsequent calls are no-ops.
+  @override
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    // 1. Clean up curl-specific resources first.
     _animationController
       ..removeListener(_onAnimationTick)
       ..removeStatusListener(_onAnimationStatusChanged)
       ..dispose();
     _touchPointNotifier.dispose();
+    // 2. Clean up PageController / ScrollController / ChangeNotifier.
+    super.dispose();
   }
 
   // ---------------------------------------------------------------------------
-  // Private — Animation
+  // Private — Curl Animation
   // ---------------------------------------------------------------------------
 
   void _onAnimationTick() {
@@ -389,7 +566,6 @@ class PageCurlController {
     _animationController.removeListener(_onAnimationTick);
 
     if (_state == CurlState.animatingForward) {
-      // Flip completed — update the page index.
       _state = CurlState.completed;
       if (_direction == CurlDirection.forward) {
         _currentPage++;
@@ -400,7 +576,6 @@ class PageCurlController {
       onPageChanged?.call(_currentPage);
     }
 
-    // Reset to idle.
     _state = CurlState.idle;
     _animationController.reset();
   }
@@ -409,7 +584,7 @@ class PageCurlController {
   // Private — Decision Logic
   // ---------------------------------------------------------------------------
 
-  /// Whether a flip in [direction] is allowed given the current page.
+  /// Whether a flip in [direction] is allowed given the current page index.
   bool _canFlip(CurlDirection direction) {
     if (direction == CurlDirection.forward) {
       return _currentPage < itemCount - 1;
@@ -421,24 +596,19 @@ class PageCurlController {
   /// Decides whether the flip should complete or snap back based on
   /// drag distance and fling velocity.
   bool _shouldCompleteFlip(Offset velocity) {
-    // Check fling velocity first depending on the axis.
     final isForward = _direction == CurlDirection.forward;
-    final relevantVelocity = config.curlAxis == CurlAxis.vertical ? (isForward ? -velocity.dy : velocity.dy) : (isForward ? -velocity.dx : velocity.dx);
+    final relevantVelocity = config.curlAxis == CurlAxis.vertical
+        ? (isForward ? -velocity.dy : velocity.dy)
+        : (isForward ? -velocity.dx : velocity.dx);
 
-    if (relevantVelocity > config.flingVelocityThreshold) {
-      return true;
-    }
-    if (relevantVelocity < -config.flingVelocityThreshold) {
-      return false;
-    }
+    if (relevantVelocity > config.flingVelocityThreshold) return true;
+    if (relevantVelocity < -config.flingVelocityThreshold) return false;
 
-    // Fall back to drag distance threshold.
     final depth = PageCurlPhysics.computeCurlDepth(
       _cornerOrigin,
       _touchPointNotifier.value,
       _pageSize,
     );
-
     return depth >= config.dragCompletionThreshold;
   }
 }

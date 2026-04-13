@@ -37,6 +37,7 @@ class _PageCurlDemoState extends State<PageCurlDemo>
   late PageCurlController _controller;
   CurlAxis _selectedAxis = CurlAxis.horizontalWithVerticalElasticity;
   int _currentPageIndex = 0;
+  bool _isCurlEnabled = true;
 
   static const _totalPages = 10;
 
@@ -61,6 +62,8 @@ class _PageCurlDemoState extends State<PageCurlDemo>
   }
 
   void _initController() {
+    // Note: Since PageCurlController extends PageController, we can
+    // create one instance and use it for BOTH PageCurlView and PageView.
     _controller = PageCurlController(
       vsync: this,
       config: PageCurlConfig(
@@ -80,10 +83,18 @@ class _PageCurlDemoState extends State<PageCurlDemo>
 
   void _onAxisChanged(CurlAxis? newAxis) {
     if (newAxis == null || newAxis == _selectedAxis) return;
+    // We recreate the controller only when physics (axis) changes.
     _controller.dispose();
     setState(() {
       _selectedAxis = newAxis;
       _initController();
+    });
+  }
+
+  void _toggleCurlMode(bool? value) {
+    if (value == null) return;
+    setState(() {
+      _isCurlEnabled = value;
     });
   }
 
@@ -103,6 +114,17 @@ class _PageCurlDemoState extends State<PageCurlDemo>
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
+          // UI to toggle between Curl and Standard scroll mode
+          Row(
+            children: [
+              const Icon(Icons.auto_stories, size: 20, color: Colors.white70),
+              Switch(
+                value: _isCurlEnabled,
+                onChanged: _toggleCurlMode,
+                activeThumbColor: Colors.amber,
+              ),
+            ],
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: DropdownButton<CurlAxis>(
@@ -120,47 +142,87 @@ class _PageCurlDemoState extends State<PageCurlDemo>
               onChanged: _onAxisChanged,
             ),
           ),
+        ],
+      ),
+      body: Column(
+        children: [
           Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: Text(
-                'Page ${_controller.currentPage + 1} / $_totalPages',
-                style: const TextStyle(fontSize: 14),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              _isCurlEnabled ? 'Mode: Realistic Curl' : 'Mode: Standard Scroll',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.5),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: _isCurlEnabled
+                    ? PageCurlView(
+                        itemCount: _totalPages,
+                        controller: _controller,
+                        config: _controller.config,
+                        itemBuilder: (context, index) => _buildPage(index),
+                      )
+                    : PageView.builder(
+                        controller: _controller,
+                        itemCount: _totalPages,
+                        itemBuilder: (context, index) => _buildPage(index),
+                      ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              'Page ${_controller.currentPage + 1} / $_totalPages',
+              style: const TextStyle(
+                fontSize: 16,
+                color: Colors.white70,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: PageCurlView(
-            itemCount: _totalPages,
-            controller: _controller,
-            config: _controller.config,
-            itemBuilder: (context, index) => _buildPage(index),
-          ),
-        ),
-      ),
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(bottom: 32, left: 24, right: 24),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             ElevatedButton.icon(
               onPressed: _controller.currentPage > 0
-                  ? () => _controller.flipBackward()
+                  ? () => _controller.previousPage(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      )
                   : null,
               icon: const Icon(Icons.arrow_back),
               label: const Text('Previous'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.brown.shade700,
+                foregroundColor: Colors.white,
+              ),
             ),
             ElevatedButton.icon(
               onPressed: _controller.currentPage < _totalPages - 1
-                  ? () => _controller.flipForward()
+                  ? () => _controller.nextPage(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      )
                   : null,
               icon: const Icon(Icons.arrow_forward),
               label: const Text('Next'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.brown.shade700,
+                foregroundColor: Colors.white,
+              ),
             ),
           ],
         ),
@@ -176,7 +238,6 @@ class _PageCurlDemoState extends State<PageCurlDemo>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Page number header.
           Text(
             'Chapter ${index + 1}',
             style: TextStyle(
@@ -187,12 +248,8 @@ class _PageCurlDemoState extends State<PageCurlDemo>
             ),
           ),
           const SizedBox(height: 24),
-
-          // Decorative divider.
           Container(width: 120, height: 2, color: Colors.brown.shade300),
           const SizedBox(height: 24),
-
-          // Sample text content.
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Text(
@@ -207,8 +264,6 @@ class _PageCurlDemoState extends State<PageCurlDemo>
             ),
           ),
           const SizedBox(height: 32),
-
-          // Page number footer.
           Text(
             '— ${index + 1} —',
             style: TextStyle(

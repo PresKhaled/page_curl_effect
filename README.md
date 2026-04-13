@@ -21,6 +21,7 @@ A high-performance Flutter package that delivers a **realistic page curl (flip) 
 - **Click-to-Flip**: Optional tap-to-flip on left/right halves of the page.
 - **Smooth Animations**: `AnimationController`-driven with configurable curves (ease-out, elastic, etc.) and fling velocity detection.
 - **Programmatic Control**: Flip forward/backward, jump to page, and listen to page change events via `PageCurlController`.
+- **Unified Controller**: `PageCurlController` extends Flutter's `PageController` — use one controller for both `PageCurlView` (curl ON) and `PageView` (curl OFF) without synchronisation issues.
 - **60/120 FPS**: Optimised rendering pipeline using `CustomPainter` + `Canvas`, leveraging Flutter's Impeller/Skia engine.
 
 ---
@@ -89,11 +90,35 @@ class _MyReaderState extends State<MyReader> with TickerProviderStateMixin {
 }
 ```
 
-### Programmatic Navigation
+### Shared Controller (Curl ON/OFF Toggle)
+
+Because `PageCurlController` extends Flutter's `PageController`, a **single controller** can drive both modes:
 
 ```dart
-_controller.flipForward();   // Animate to next page
-_controller.flipBackward();  // Animate to previous page
+final ctrl = PageCurlController(
+  vsync: this,
+  config: const PageCurlConfig(),
+  itemCount: pages.length,
+);
+
+// Curl mode:
+PageCurlView(controller: ctrl, itemCount: pages.length, itemBuilder: ...)
+
+// Normal mode — same controller, no sync needed:
+PageView.builder(controller: ctrl, itemBuilder: ...)
+
+// Navigation API is identical in both modes:
+ctrl.nextPage(duration: const Duration(milliseconds: 400), curve: Curves.easeOut);
+ctrl.previousPage(duration: const Duration(milliseconds: 400), curve: Curves.easeOut);
+ctrl.jumpToPage(5);
+ctrl.animateToPage(5, duration: const Duration(milliseconds: 400), curve: Curves.easeOut);
+```
+
+### Programmatic Navigation (Curl Mode)
+
+```dart
+_controller.flipForward();   // Animate to next page with curl
+_controller.flipBackward();  // Animate to previous page with curl
 _controller.jumpToPage(5);   // Jump without animation
 ```
 
@@ -186,7 +211,7 @@ lib/
 | Class | Purpose |
 |-------|--------|
 | `PageCurlView` | Main widget — drop-in replacement for `PageView` with curl effect |
-| `PageCurlController` | State machine + animation controller for programmatic control |
+| `PageCurlController` | Extends `PageController` — state machine + animation for curl mode; delegates to `PageController` scroll physics in PageView mode |
 | `PageCurlConfig` | Master configuration DTO (gestures, animation, geometry, shadows) |
 | `CurlShadowConfig` | Shadow appearance configuration (edge + base) |
 | `PageCurlPhysics` | Pure static math engine (fold line, reflection, clipping) |
@@ -216,7 +241,7 @@ Run the test suite:
 flutter test
 ```
 
-The package includes **29 unit tests** covering:
+The package includes **37 unit tests** covering:
 
 - Fold line computation (midpoint, perpendicularity, unit length, angle)
 - Reflection matrix (double-reflection = identity, fold-line invariance)

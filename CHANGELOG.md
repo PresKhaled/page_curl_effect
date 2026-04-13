@@ -1,3 +1,25 @@
+## 0.1.2
+
+### ✨ Enhancements
+
+- **`PageCurlController` now extends `PageController`**: Eliminates the need to maintain two separate controllers when toggling the curl effect on/off. A single `PageCurlController` instance can be passed to both `PageCurlView` (curl ON) and Flutter's built-in `PageView` (curl OFF) without losing page-index synchronisation.
+  - **`page` getter**: Returns the scroll-position-based fractional page when a `PageView` is attached (`hasClients == true`); falls back to `currentPage.toDouble()` in curl mode.
+  - **`jumpToPage`**: Updates the internal index and, when clients are attached, also moves the `PageView` scroll position instantly.
+  - **`animateToPage` / `nextPage` / `previousPage`**: Delegate to `PageController` scroll animation in PageView mode; use the curl flip animation in curl mode.
+  - **Automatic sync**: `currentPage` stays in sync with `PageView` swipes via `attach`/`detach` hooks — no manual listener required.
+  - **`keepPage` and `viewportFraction`**: New optional constructor parameters forwarded to `PageController` for PageView mode.
+
+### 🐛 Bug Fixes
+
+- **`PageView` starts at wrong page after toggling curl off**: Fixed by overriding the `initialPage` getter to dynamically return `_currentPage` instead of the frozen constructor value. Flutter's internal `_PagePosition` reads `this.initialPage` during layout to compute the starting scroll offset — by making this getter dynamic, the attached `PageView` always starts at the correct current page with zero flicker and no post-frame workarounds.
+
+### 🧪 Testing
+
+- Added `test/core/page_curl_controller_test.dart` with **6 new unit tests** covering `PageController` inheritance, navigation routing, and the `initialPage` regression.
+- Total test count: **37 tests**.
+
+---
+
 ## 0.1.1
 
 ### 🐛 Bug Fixes & Refinements

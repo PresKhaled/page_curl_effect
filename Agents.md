@@ -62,7 +62,7 @@ core → config
 | Module | Responsibility | Flutter Widget Deps? |
 |--------|---------------|---------------------|
 | `config/` | Immutable configuration DTOs with `const` constructors | No |
-| `core/` | Pure math + state logic (fold line, reflection, state machine) | Minimal (AnimationController) |
+| `core/` | Pure math + state logic (fold line, reflection, state machine) + `PageCurlController` | Minimal (`AnimationController`, `PageController`) |
 | `effects/` | Shadow gradient painting | Yes (Canvas) |
 | `gesture/` | Drag/tap detection, forwarding to controller | Yes (GestureDetector) |
 | `rendering/` | CustomPainter orchestration + widget rasterisation | Yes (Canvas, RenderObject) |
@@ -99,15 +99,16 @@ Enum: `forward` (next page), `backward` (previous page)
 - `computeFlipCompletionTarget(cornerOrigin, pageSize) → Offset`
 
 ### `lib/src/core/page_curl_controller.dart`
-State machine + `AnimationController` owner. Key API:
+State machine + `AnimationController` owner. **Extends Flutter's `PageController`** so one instance drives both `PageCurlView` (curl ON) and a standard `PageView` (curl OFF) without synchronisation issues. Key API:
 - `onDragStart(position) → bool` — accepts/rejects drag
 - `onDragUpdate(position)` — updates touch point
 - `onDragEnd(velocity:)` — decides complete vs snap-back
-- `flipForward()` / `flipBackward()` — programmatic flip
-- `jumpToPage(int)` — instant jump
+- `flipForward()` / `flipBackward()` — programmatic curl flip (curl mode)
+- `jumpToPage(int)` — instant jump (both modes)
+- `nextPage(...)` / `previousPage(...)` / `animateToPage(...)` — curl or scroll depending on `hasClients`
 - `touchPointNotifier` — `ValueNotifier<Offset>` for painter binding
 - `setPageSize(Size)` — called by PageCurlView on layout
-- Callbacks: `onFlipStart`, `onFlipEnd`, `onPageChanged`
+- Callbacks: `onFlipStart`, `onFlipEnd`, `onPageChanged` (fires in both modes)
 
 ### `lib/src/effects/shadow/curl_shadow_config.dart`
 Shadow configuration DTO. Parameters per shadow type (edge/base):
@@ -287,7 +288,7 @@ class _ReaderState extends State<Reader> with TickerProviderStateMixin {
 ## Testing
 
 ```bash
-# Run all tests (29 tests)
+# Run all tests (37 tests)
 flutter test
 
 # Run physics tests only
@@ -299,7 +300,7 @@ flutter test --reporter expanded
 
 ## Key Constraints & Gotchas
 
-1. **`core/` must stay widget-free**: `PageCurlPhysics` operates only on `Offset`, `Size`, `Path`, `Matrix4`. Do not import `package:flutter/material.dart` there.
+1. **`core/` imports `package:flutter/widgets.dart`**: `PageCurlController` extends `PageController` which requires `package:flutter/widgets.dart`. This is an intentional, documented exception — `PageCurlPhysics` remains widget-free. Do **not** import `package:flutter/material.dart` in `core/`.
 2. **`toImage()` is expensive**: Only call on drag start (via `addPostFrameCallback`), never per-frame.
 3. **`Matrix4` comes from `vector_math`**: Imported as `package:vector_math/vector_math_64.dart`.
 4. **Reflection matrix uses row/column indexing**: `setEntry(row, col, value)` — column 3 is the translation column.
